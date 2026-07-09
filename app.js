@@ -3,13 +3,9 @@ const logEl = document.getElementById("log");
 const gridEl = document.getElementById("grid");
 const signinBtn = document.getElementById("signin");
 const refreshBtn = document.getElementById("refresh");
-const titleEl = document.getElementById("title");
-const btnSubscriptions = document.getElementById("btn-subscriptions");
-const btnHome = document.getElementById("btn-home");
 
 let tokenClient;
 let accessToken = null;
-let feedMode = "subscriptions";
 
 function log(msg) {
   logEl.textContent = msg;
@@ -53,22 +49,6 @@ signinBtn.addEventListener("click", () => {
 });
 
 refreshBtn.addEventListener("click", loadFeed);
-
-btnSubscriptions.addEventListener("click", () => {
-  feedMode = "subscriptions";
-  titleEl.textContent = "Subscriptions Feed";
-  btnSubscriptions.classList.add("active");
-  btnHome.classList.remove("active");
-  loadFeed();
-});
-
-btnHome.addEventListener("click", () => {
-  feedMode = "home";
-  titleEl.textContent = "Home Feed";
-  btnHome.classList.add("active");
-  btnSubscriptions.classList.remove("active");
-  loadFeed();
-});
 
 // ---- YouTube Data API helpers ----
 
@@ -177,82 +157,42 @@ async function getDurations(videoIds) {
   return details;
 }
 
-async function getHomeFeed() {
-  let videos = [];
-  let pageToken = "";
-  do {
-    const data = await apiGet("activities", {
-      part: "snippet,contentDetails",
-      home: "true",
-      maxResults: "50",
-      pageToken
-    });
-    console.log("Activities API response:", data);
-    for (const item of data.items) {
-      const cd = item.contentDetails;
-      console.log("Activity item:", item.snippet.type, cd);
-      let videoId = null;
-      if (cd?.upload?.videoId) videoId = cd.upload.videoId;
-      else if (cd?.recommendation?.resourceId?.videoId) videoId = cd.recommendation.resourceId.videoId;
-      if (videoId) {
-        const s = item.snippet;
-        videos.push({
-          videoId,
-          title: s.title,
-          channelTitle: s.channelTitle,
-          publishedAt: s.publishedAt,
-          thumbnail: s.thumbnails?.medium?.url || s.thumbnails?.default?.url
-        });
-      }
-    }
-    pageToken = data.nextPageToken || "";
-  } while (pageToken);
-  return videos;
-}
-
 // ---- Main flow ----
 
 async function loadFeed() {
   gridEl.innerHTML = "";
   refreshBtn.disabled = true;
   try {
+    log("Fetching subscriptions…");
+    const channels = await getAllSubscriptions();
+
+    log(`Fetching upload playlists for ${channels.length} channels…`);
+    const uploadsMap = await getUploadsPlaylistIds(channels);
+
+    log("Fetching recent uploads…");
     let allVideos = [];
-
-    if (feedMode === "home") {
-      log("Fetching home feed…");
-      allVideos = await getHomeFeed();
-      log(`Got ${allVideos.length} videos from home feed.`);
-    } else {
-      log("Fetching subscriptions…");
-      const channels = await getAllSubscriptions();
-
-      log(`Fetching upload playlists for ${channels.length} channels…`);
-      const uploadsMap = await getUploadsPlaylistIds(channels);
-
-      log("Fetching recent uploads…");
-      const CONCURRENCY = 10;
-      const channelBatches = chunk(channels, CONCURRENCY);
-      let done = 0;
-      for (const batch of channelBatches) {
-        const results = await Promise.all(batch.map(async (channel) => {
-          const playlistId = uploadsMap[channel.id];
-          if (!playlistId) return [];
-          try {
-            return await getRecentVideosForPlaylist(playlistId);
-          } catch (e) {
-            console.warn("Skipping channel", channel.title, e);
-            return [];
-          }
-        }));
-        results.forEach(vids => allVideos.push(...vids));
-        done += batch.length;
-        log(`Fetching recent uploads… (${done}/${channels.length} channels)`);
-      }
-
-      log("Filtering by date…");
-      const cutoff = new Date(Date.now() - CONFIG.DAYS_BACK * 86400000);
-      allVideos = allVideos.filter(v => new Date(v.publishedAt) >= cutoff);
+    const CONCURRENCY = 10;
+    const channelBatches = chunk(channels, CONCURRENCY);
+    let done = 0;
+    for (const batch of channelBatches) {
+      const results = await Promise.all(batch.map(async (channel) => {
+        const playlistId = uploadsMap[channel.id];
+        if (!playlistId) return [];
+        try {
+          return await getRecentVideosForPlaylist(playlistId);
+        } catch (e) {
+          console.warn("Skipping channel", channel.title, e);
+          return [];
+        }
+      }));
+      results.forEach(vids => allVideos.push(...vids));
+      done += batch.length;
+      log(`Fetching recent uploads… (${done}/${channels.length} channels)`);
     }
+
+    log("Filtering by date…");
+    const cutoff = new Date(Date.now() - CONFIG.DAYS_BACK * 86400000);
+    allVideos = allVideos.filter(v => new Date(v.publishedAt) >= cutoff);
 
     log("Filtering out Shorts…");
     const videoDetails = await getDurations(allVideos.map(v => v.videoId));
