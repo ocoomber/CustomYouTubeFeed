@@ -141,17 +141,21 @@ function parseIsoDuration(iso) {
 }
 
 async function getDurations(videoIds) {
-  const durations = {};
+  const details = {};
   for (const group of chunk(videoIds, 50)) {
     const data = await apiGet("videos", {
-      part: "contentDetails",
+      part: "contentDetails,snippet,statistics",
       id: group.join(",")
     });
     for (const item of data.items) {
-      durations[item.id] = parseIsoDuration(item.contentDetails.duration);
+      details[item.id] = {
+        duration: parseIsoDuration(item.contentDetails.duration),
+        description: item.snippet.description || "",
+        viewCount: item.statistics?.viewCount || null
+      };
     }
   }
-  return durations;
+  return details;
 }
 
 // ---- Main flow ----
@@ -192,16 +196,16 @@ async function loadFeed() {
     allVideos = allVideos.filter(v => new Date(v.publishedAt) >= cutoff);
 
     log("Filtering out Shorts…");
-    const durations = await getDurations(allVideos.map(v => v.videoId));
+    const videoDetails = await getDurations(allVideos.map(v => v.videoId));
     allVideos = allVideos.filter(v => {
-      const d = durations[v.videoId];
-      return d === undefined || d > CONFIG.SHORTS_MAX_SECONDS;
+      const d = videoDetails[v.videoId];
+      return d === undefined || d.duration > CONFIG.SHORTS_MAX_SECONDS;
     });
 
     allVideos.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
 
     log(`Loaded ${allVideos.length} videos from ${channels.length} channels.`);
-    render(allVideos);
+    render(allVideos, videoDetails);
   } catch (e) {
     console.error(e);
     log("Error: " + e.message);
@@ -210,20 +214,25 @@ async function loadFeed() {
   }
 }
 
-function render(videos) {
+function render(videos, details) {
   gridEl.innerHTML = "";
   for (const v of videos) {
+    const d = details[v.videoId] || {};
     const a = document.createElement("a");
     a.className = "card";
     a.href = `https://www.youtube.com/watch?v=${v.videoId}`;
     a.target = "_blank";
     a.rel = "noopener";
+    const desc = d.description ? escapeHtml(d.description.slice(0, 150)) : "";
+    const views = d.viewCount ? Number(d.viewCount).toLocaleString() + " views" : "";
     a.innerHTML = `
-      <img src="${v.thumbnail}" loading="lazy" alt="">
-      <div class="body">
-        <p class="title">${escapeHtml(v.title)}</p>
-        <p class="meta">${escapeHtml(v.channelTitle)} · ${formatDate(v.publishedAt)}</p>
+      <div class="card-body">
+        <p class="card-channel">${escapeHtml(v.channelTitle)}</p>
+        <p class="card-title">${escapeHtml(v.title)}</p>
+        ${desc ? `<p class="card-desc">${desc}${d.description.length > 150 ? "…" : ""}</p>` : ""}
+        <p class="card-meta">${formatDate(v.publishedAt)}${views ? " · " + views : ""}</p>
       </div>
+      <img class="card-thumb" src="${v.thumbnail}" loading="lazy" alt="">
     `;
     gridEl.appendChild(a);
   }
