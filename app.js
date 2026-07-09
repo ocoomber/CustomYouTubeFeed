@@ -131,7 +131,6 @@ async function getRecentVideosForPlaylist(playlistId) {
 }
 
 function parseIsoDuration(iso) {
-  // e.g. PT1H2M10S -> seconds
   const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
   if (!m) return 0;
   const h = parseInt(m[1] || "0", 10);
@@ -157,11 +156,35 @@ async function getDurations(videoIds) {
   return details;
 }
 
+// ---- Cache ----
+
+function cacheFeed(videos) {
+  try { localStorage.setItem("yt_feed_cache", JSON.stringify(videos)); } catch (e) {}
+}
+
+function loadCachedFeed() {
+  try {
+    const raw = localStorage.getItem("yt_feed_cache");
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
 // ---- Main flow ----
 
+let feedVersion = 0;
+
 async function loadFeed() {
+  const myVersion = ++feedVersion;
   gridEl.innerHTML = "";
   refreshBtn.disabled = true;
+
+  // Show cached feed instantly
+  const cached = loadCachedFeed();
+  if (cached && cached.length) {
+    log(`Showing ${cached.length} cached videos, refreshing…`);
+    renderCards(cached);
+  }
+
   try {
     log("Fetching subscriptions…");
     const channels = await getAllSubscriptions();
@@ -169,12 +192,14 @@ async function loadFeed() {
     log(`Fetching upload playlists for ${channels.length} channels…`);
     const uploadsMap = await getUploadsPlaylistIds(channels);
 
+    // Fetch and render incrementally
     log("Fetching recent uploads…");
     let allVideos = [];
     const CONCURRENCY = 10;
     const channelBatches = chunk(channels, CONCURRENCY);
     let done = 0;
     for (const batch of channelBatches) {
+      if (myVersion !== feedVersion) return;
       const results = await Promise.all(batch.map(async (channel) => {
         const playlistId = uploadsMap[channel.id];
         if (!playlistId) return [];
@@ -187,8 +212,16 @@ async function loadFeed() {
       }));
       results.forEach(vids => allVideos.push(...vids));
       done += batch.length;
-      log(`Fetching recent uploads… (${done}/${channels.length} channels)`);
+
+      // Incremental render
+      const partial = allVideos
+        .filter(v => new Date(v.publishedAt) >= new Date(Date.now() - CONFIG.DAYS_BACK * 86400000))
+        .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+      renderCards(partial);
+      log(`Fetching… (${done}/${channels.length} channels, ${partial.length} videos)`);
     }
+
+    if (myVersion !== feedVersion) return;
 
     log("Filtering by date…");
     const cutoff = new Date(Date.now() - CONFIG.DAYS_BACK * 86400000);
@@ -204,19 +237,20 @@ async function loadFeed() {
     allVideos.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
 
     log(`Loaded ${allVideos.length} videos.`);
-    render(allVideos, videoDetails);
+    renderCards(allVideos, videoDetails);
+    cacheFeed(allVideos);
   } catch (e) {
     console.error(e);
     log("Error: " + e.message);
   } finally {
-    refreshBtn.disabled = false;
+    if (myVersion === feedVersion) refreshBtn.disabled = false;
   }
 }
 
-function render(videos, details) {
+function renderCards(videos, details) {
   gridEl.innerHTML = "";
   for (const v of videos) {
-    const d = details[v.videoId] || {};
+    const d = details?.[v.videoId] || {};
     const a = document.createElement("a");
     a.className = "card";
     a.href = `https://www.youtube.com/watch?v=${v.videoId}`;
