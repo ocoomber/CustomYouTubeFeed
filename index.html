@@ -13,6 +13,21 @@
     --accent: #3ea6ff;
     --radius: 10px;
     --feed-width: 880px;
+    --chip-bg: #2a2a2a;
+    --chip-active: var(--accent);
+    --chip-active-text: #000;
+    --header-border: #2a2a2a;
+  }
+  .light {
+    --bg: #f5f5f5;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --muted: #666666;
+    --accent: #065fd4;
+    --chip-bg: #e0e0e0;
+    --chip-active: var(--accent);
+    --chip-active-text: #fff;
+    --header-border: #ddd;
   }
   * { box-sizing: border-box; }
   body {
@@ -31,7 +46,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 24px 0;
-    border-bottom: 1px solid #2a2a2a;
+    border-bottom: 1px solid var(--header-border);
     position: sticky;
     top: 0;
     background: var(--bg);
@@ -60,6 +75,71 @@
     transition: opacity 0.15s;
   }
   .yt-link:hover { opacity: 1; }
+  #theme-toggle {
+    background: var(--chip-bg);
+    color: var(--text);
+    border: none;
+    border-radius: 20px;
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .date-range {
+    display: flex;
+    background: var(--chip-bg);
+    border-radius: 20px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .range-btn {
+    background: transparent;
+    color: var(--muted);
+    border: none;
+    border-radius: 18px;
+    padding: 5px 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .range-btn.active {
+    background: var(--chip-active);
+    color: var(--chip-active-text);
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+    padding-bottom: 4px;
+  }
+  .chip {
+    background: var(--chip-bg);
+    color: var(--muted);
+    border: none;
+    border-radius: 18px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+  .chip.active {
+    background: var(--chip-active);
+    color: var(--chip-active-text);
+  }
+  .chip:hover:not(.active) {
+    background: #3a3a3a;
+  }
+  .light .chip:hover:not(.active) {
+    background: #d0d0d0;
+  }
   #grid {
     display: flex;
     flex-direction: column;
@@ -82,6 +162,18 @@
     flex-direction: column;
     gap: 8px;
     min-width: 0;
+  }
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
   }
   .card-channel {
     font-size: 14px;
@@ -138,11 +230,20 @@
 <header>
   <h1>Subscriptions Feed <span id="status"></span></h1>
   <div id="controls">
-    <a id="yt-home" class="yt-link" href="https://www.youtube.com/" target="_blank" rel="noopener">YouTube Home ↗</a>
+    <div class="date-range">
+      <button class="range-btn active" data-days="3">3d</button>
+      <button class="range-btn" data-days="7">7d</button>
+      <button class="range-btn" data-days="14">14d</button>
+      <button class="range-btn" data-days="30">30d</button>
+    </div>
+    <a id="yt-home" class="yt-link" href="https://www.youtube.com/" target="_blank" rel="noopener">YouTube ↗</a>
+    <button id="theme-toggle" title="Toggle light/dark mode">☀</button>
     <button id="signin">Sign in with Google</button>
     <button id="refresh" disabled>Refresh</button>
   </div>
 </header>
+
+<div id="chips" class="chips"></div>
 
 <div id="log"></div>
 <div id="grid"></div>

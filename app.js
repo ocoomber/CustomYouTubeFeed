@@ -1,23 +1,62 @@
 const statusEl = document.getElementById("status");
 const logEl = document.getElementById("log");
 const gridEl = document.getElementById("grid");
+const chipsEl = document.getElementById("chips");
 const signinBtn = document.getElementById("signin");
 const refreshBtn = document.getElementById("refresh");
+const themeBtn = document.getElementById("theme-toggle");
 
 let tokenClient;
 let accessToken = null;
+let daysBack = 7;
+let activeChannel = null;
+let allLoadedVideos = [];
+let allVideoDetails = {};
+let channelAvatars = {};
 
-function log(msg) {
-  logEl.textContent = msg;
+function log(msg) { logEl.textContent = msg; }
+function setStatus(msg) { statusEl.textContent = msg ? `— ${msg}` : ""; }
+
+// ---- Theme ----
+
+function applyTheme(theme) {
+  document.body.classList.toggle("light", theme === "light");
+  themeBtn.textContent = theme === "light" ? "☾" : "☀";
+  localStorage.setItem("yt_feed_theme", theme);
 }
 
-function setStatus(msg) {
-  statusEl.textContent = msg ? `— ${msg}` : "";
-}
+themeBtn.addEventListener("click", () => {
+  const next = document.body.classList.contains("light") ? "dark" : "light";
+  applyTheme(next);
+});
 
-// ---- OAuth (Google Identity Services token model) ----
+// ---- Date range ----
+
+document.querySelectorAll(".range-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelector(".range-btn.active")?.classList.remove("active");
+    btn.classList.add("active");
+    daysBack = Number(btn.dataset.days);
+    localStorage.setItem("yt_feed_days", daysBack);
+    loadFeed();
+  });
+});
+
+// ---- OAuth ----
 
 window.addEventListener("load", () => {
+  // Restore theme
+  applyTheme(localStorage.getItem("yt_feed_theme") || "dark");
+
+  // Restore days
+  const savedDays = localStorage.getItem("yt_feed_days");
+  if (savedDays) {
+    daysBack = Number(savedDays);
+    document.querySelector(`.range-btn[data-days="${daysBack}"]`)?.classList.add("active");
+    document.querySelector(".range-btn.active")?.classList.remove("active");
+    document.querySelector(`.range-btn[data-days="${daysBack}"]`)?.classList.add("active");
+  }
+
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CONFIG.CLIENT_ID,
     scope: "https://www.googleapis.com/auth/youtube.readonly",
@@ -34,7 +73,6 @@ window.addEventListener("load", () => {
     }
   });
 
-  // Restore token from last session
   const saved = localStorage.getItem("yt_feed_token");
   if (saved) {
     accessToken = saved;
@@ -63,7 +101,6 @@ async function apiGet(path, params) {
   });
   if (!res.ok) {
     const body = await res.text();
-    // Token expired — clear it and prompt re-auth
     if (res.status === 401) {
       localStorage.removeItem("yt_feed_token");
       accessToken = null;
@@ -105,11 +142,12 @@ async function getUploadsPlaylistIds(channels) {
   const map = {};
   for (const group of chunk(channels, 50)) {
     const data = await apiGet("channels", {
-      part: "contentDetails",
+      part: "contentDetails,snippet",
       id: group.map(c => c.id).join(",")
     });
     for (const item of data.items) {
       map[item.id] = item.contentDetails.relatedPlaylists.uploads;
+      channelAvatars[item.id] = item.snippet.thumbnails?.default?.url || "";
     }
   }
   return map;
@@ -125,6 +163,7 @@ async function getRecentVideosForPlaylist(playlistId) {
     videoId: i.contentDetails.videoId,
     title: i.snippet.title,
     channelTitle: i.snippet.channelTitle,
+    channelId: i.snippet.channelId,
     publishedAt: i.contentDetails.videoPublishedAt || i.snippet.publishedAt,
     thumbnail: i.snippet.thumbnails?.medium?.url || i.snippet.thumbnails?.default?.url
   }));
@@ -169,6 +208,36 @@ function loadCachedFeed() {
   } catch (e) { return null; }
 }
 
+// ---- Channel chips ----
+
+function renderChips(videos) {
+  const channelCounts = {};
+  for (const v of videos) {
+    const name = v.channelTitle;
+    channelCounts[name] = (channelCounts[name] || 0) + 1;
+  }
+  const sorted = Object.entries(channelCounts).sort((a, b) => b[1] - a[1]);
+
+  chipsEl.innerHTML = "";
+  const allChip = document.createElement("button");
+  allChip.className = "chip" + (activeChannel ? "" : " active");
+  allChip.textContent = `All (${videos.length})`;
+  allChip.addEventListener("click", () => { activeChannel = null; renderCards(allLoadedVideos, allVideoDetails); renderChips(allLoadedVideos); });
+  chipsEl.appendChild(allChip);
+
+  for (const [name, count] of sorted) {
+    const chip = document.createElement("button");
+    chip.className = "chip" + (activeChannel === name ? " active" : "");
+    chip.textContent = `${name} (${count})`;
+    chip.addEventListener("click", () => {
+      activeChannel = activeChannel === name ? null : name;
+      renderCards(allLoadedVideos, allVideoDetails);
+      renderChips(allLoadedVideos);
+    });
+    chipsEl.appendChild(chip);
+  }
+}
+
 // ---- Main flow ----
 
 let feedVersion = 0;
@@ -177,12 +246,14 @@ async function loadFeed() {
   const myVersion = ++feedVersion;
   gridEl.innerHTML = "";
   refreshBtn.disabled = true;
+  activeChannel = null;
 
-  // Show cached feed instantly
   const cached = loadCachedFeed();
   if (cached && cached.length) {
     log(`Showing ${cached.length} cached videos, refreshing…`);
+    allLoadedVideos = cached;
     renderCards(cached);
+    renderChips(cached);
   }
 
   try {
@@ -192,7 +263,6 @@ async function loadFeed() {
     log(`Fetching upload playlists for ${channels.length} channels…`);
     const uploadsMap = await getUploadsPlaylistIds(channels);
 
-    // Fetch and render incrementally
     log("Fetching recent uploads…");
     let allVideos = [];
     let renderedIds = new Set();
@@ -211,7 +281,7 @@ async function loadFeed() {
           return [];
         }
       }));
-      const cutoff = new Date(Date.now() - CONFIG.DAYS_BACK * 86400000);
+      const cutoff = new Date(Date.now() - daysBack * 86400000);
       const newVideos = results.flat()
         .filter(v => new Date(v.publishedAt) >= cutoff && !renderedIds.has(v.videoId))
         .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
@@ -226,9 +296,8 @@ async function loadFeed() {
 
     if (myVersion !== feedVersion) return;
 
-    // Final pass: fetch durations, filter shorts, re-render with details
     log("Filtering out Shorts…");
-    const dateCutoff = new Date(Date.now() - CONFIG.DAYS_BACK * 86400000);
+    const dateCutoff = new Date(Date.now() - daysBack * 86400000);
     const dateFiltered = allVideos.filter(v => new Date(v.publishedAt) >= dateCutoff);
     const videoDetails = await getDurations(dateFiltered.map(v => v.videoId));
     const final = dateFiltered
@@ -239,7 +308,10 @@ async function loadFeed() {
       .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
 
     log(`Loaded ${final.length} videos.`);
+    allLoadedVideos = final;
+    allVideoDetails = videoDetails;
     renderCards(final, videoDetails);
+    renderChips(final);
     cacheFeed(final);
   } catch (e) {
     console.error(e);
@@ -251,11 +323,13 @@ async function loadFeed() {
 
 function renderCards(videos, details) {
   gridEl.innerHTML = "";
-  for (const v of videos) appendCard(v, details);
+  const filtered = activeChannel ? videos.filter(v => v.channelTitle === activeChannel) : videos;
+  for (const v of filtered) appendCard(v, details);
 }
 
 function appendCard(v, details) {
   const d = details?.[v.videoId] || {};
+  const avatar = channelAvatars[v.channelId] || "";
   const a = document.createElement("a");
   a.className = "card";
   a.href = `https://www.youtube.com/watch?v=${v.videoId}`;
@@ -265,19 +339,31 @@ function appendCard(v, details) {
   const dur = d.duration ? formatDuration(d.duration) : "";
   a.innerHTML = `
     <div class="card-body">
-      <p class="card-channel">${escapeHtml(v.channelTitle)}</p>
+      <div class="card-header">
+        ${avatar ? `<img class="card-avatar" src="${avatar}" alt="" loading="lazy">` : ""}
+        <p class="card-channel">${escapeHtml(v.channelTitle)}</p>
+      </div>
       <p class="card-title">${escapeHtml(v.title)}</p>
       ${desc ? `<p class="card-desc">${desc}${d.description.length > 150 ? "…" : ""}</p>` : ""}
-      <p class="card-meta">${formatDate(v.publishedAt)}${dur ? " · " + dur : ""}</p>
+      <p class="card-meta">${timeAgo(v.publishedAt)}${dur ? " · " + dur : ""}</p>
     </div>
     <img class="card-thumb" src="${v.thumbnail}" loading="lazy" alt="">
   `;
   gridEl.appendChild(a);
 }
 
-function formatDate(iso) {
-  const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+// ---- Formatting ----
+
+function timeAgo(iso) {
+  const seconds = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
 function formatDuration(seconds) {
