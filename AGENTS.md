@@ -7,8 +7,9 @@ Static site (HTML + JS, no build step) that shows a YouTube subscriptions feed. 
 ## Structure
 
 - `index.html` — entry point, loads Google Identity Services SDK, then `config.js` and `app.js`
-- `config.js` — Google OAuth Client ID and YouTube Data API key (live credentials, do not commit new ones)
+- `config.js` — Google OAuth Client ID and Worker proxy URL (no secrets)
 - `app.js` — all application logic: OAuth flow, YouTube Data API calls, rendering
+- `worker/` — Cloudflare Worker that proxies YouTube API requests, keeping the API key server-side
 
 ## Workflow
 
@@ -41,5 +42,7 @@ Then open `http://localhost:8000`. Google OAuth requires serving from a real ori
 - `config.js` contains live Google API credentials. Treat it carefully — the API key is restricted by domain in Google Cloud Console.
 - The repo is public; `config.js` is visible to anyone. The API key's domain restriction is the security boundary.
 - YouTube Data API has daily quota limits. Increasing `VIDEOS_PER_CHANNEL` in config.js consumes more quota per load.
+- The sidebar is `position: fixed` with `left: max(16px, calc(50% - 570px))` to align with the wrapper. Grid has `margin-left: 284px` to avoid overlap.
+- YouTube Data API does not expose the algorithmic home feed (recommended videos) — only subscriptions and own activity.
 - The sidebar is `position: fixed` with `left: max(16px, calc(50% - 570px))` to align with the wrapper. Grid has `margin-left: 284px` to avoid overlap.
 - YouTube Data API does not expose the algorithmic home feed (recommended videos) — only subscriptions and own activity.
