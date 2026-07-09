@@ -27,14 +27,21 @@ window.addEventListener("load", () => {
         return;
       }
       accessToken = resp.access_token;
+      localStorage.setItem("yt_feed_token", accessToken);
       setStatus("signed in");
       refreshBtn.disabled = false;
       loadFeed();
     }
   });
 
-  // Try silent re-auth so you don't have to click Sign in every reload
-  tokenClient.requestAccessToken({ prompt: "none" });
+  // Restore token from last session
+  const saved = localStorage.getItem("yt_feed_token");
+  if (saved) {
+    accessToken = saved;
+    setStatus("signed in");
+    refreshBtn.disabled = false;
+    loadFeed();
+  }
 });
 
 signinBtn.addEventListener("click", () => {
@@ -56,6 +63,14 @@ async function apiGet(path, params) {
   });
   if (!res.ok) {
     const body = await res.text();
+    // Token expired — clear it and prompt re-auth
+    if (res.status === 401) {
+      localStorage.removeItem("yt_feed_token");
+      accessToken = null;
+      setStatus("");
+      refreshBtn.disabled = true;
+      log("Session expired — please sign in again.");
+    }
     throw new Error(`${path} failed: ${res.status} ${body}`);
   }
   return res.json();
