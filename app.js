@@ -32,6 +32,9 @@ window.addEventListener("load", () => {
       loadFeed();
     }
   });
+
+  // Try silent re-auth so you don't have to click Sign in every reload
+  tokenClient.requestAccessToken({ prompt: "none" });
 });
 
 signinBtn.addEventListener("click", () => {
