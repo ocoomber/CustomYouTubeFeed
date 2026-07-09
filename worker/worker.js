@@ -30,6 +30,8 @@ export default {
     const headers = new Headers();
     const auth = request.headers.get("Authorization");
     if (auth) headers.set("Authorization", auth);
+    const referer = request.headers.get("Referer") || "https://ocoomber.github.io/CustomYouTubeFeed/";
+    headers.set("Referer", referer);
 
     const res = await fetch(ytUrl.toString(), {
       method: request.method,
