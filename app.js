@@ -101,11 +101,10 @@ sidebarSearch.addEventListener("input", () => {
 
 // ---- YouTube Data API helpers ----
 
-const API_BASE = "https://www.googleapis.com/youtube/v3";
+const API_BASE = CONFIG.PROXY_URL + "/youtube";
 
 async function apiGet(path, params) {
   const url = new URL(`${API_BASE}/${path}`);
-  url.searchParams.set("key", CONFIG.API_KEY);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` }
