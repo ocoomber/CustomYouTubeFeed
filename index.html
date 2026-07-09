@@ -114,16 +114,14 @@
   .layout {
     display: flex;
     gap: 24px;
-    margin-top: 0;
-    margin-left: 280px;
   }
   .sidebar {
-    position: fixed;
-    left: 0;
-    top: 77px;
-    bottom: 0;
     width: 260px;
-    padding: 20px 16px;
+    min-width: 260px;
+    position: sticky;
+    top: 76px;
+    height: 100vh;
+    padding: 20px 0;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
