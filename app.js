@@ -188,10 +188,14 @@ async function getHomeFeed() {
       pageToken
     });
     for (const item of data.items) {
-      if (item.contentDetails?.upload?.videoId) {
+      const cd = item.contentDetails;
+      let videoId = null;
+      if (cd?.upload?.videoId) videoId = cd.upload.videoId;
+      else if (cd?.recommendation?.resourceId?.videoId) videoId = cd.recommendation.resourceId.videoId;
+      if (videoId) {
         const s = item.snippet;
         videos.push({
-          videoId: item.contentDetails.upload.videoId,
+          videoId,
           title: s.title,
           channelTitle: s.channelTitle,
           publishedAt: s.publishedAt,
