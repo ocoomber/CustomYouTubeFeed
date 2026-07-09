@@ -195,6 +195,7 @@ async function loadFeed() {
     // Fetch and render incrementally
     log("Fetching recent uploads…");
     let allVideos = [];
+    let renderedIds = new Set();
     const CONCURRENCY = 10;
     const channelBatches = chunk(channels, CONCURRENCY);
     let done = 0;
@@ -210,35 +211,36 @@ async function loadFeed() {
           return [];
         }
       }));
-      results.forEach(vids => allVideos.push(...vids));
-      done += batch.length;
-
-      // Incremental render
-      const partial = allVideos
-        .filter(v => new Date(v.publishedAt) >= new Date(Date.now() - CONFIG.DAYS_BACK * 86400000))
+      const cutoff = new Date(Date.now() - CONFIG.DAYS_BACK * 86400000);
+      const newVideos = results.flat()
+        .filter(v => new Date(v.publishedAt) >= cutoff && !renderedIds.has(v.videoId))
         .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-      renderCards(partial);
-      log(`Fetching… (${done}/${channels.length} channels, ${partial.length} videos)`);
+      for (const v of newVideos) {
+        renderedIds.add(v.videoId);
+        appendCard(v);
+      }
+      allVideos.push(...results.flat());
+      done += batch.length;
+      log(`Fetching… (${done}/${channels.length} channels, ${renderedIds.size} videos)`);
     }
 
     if (myVersion !== feedVersion) return;
 
-    log("Filtering by date…");
-    const cutoff = new Date(Date.now() - CONFIG.DAYS_BACK * 86400000);
-    allVideos = allVideos.filter(v => new Date(v.publishedAt) >= cutoff);
-
+    // Final pass: fetch durations, filter shorts, re-render with details
     log("Filtering out Shorts…");
-    const videoDetails = await getDurations(allVideos.map(v => v.videoId));
-    allVideos = allVideos.filter(v => {
-      const d = videoDetails[v.videoId];
-      return d === undefined || d.duration > CONFIG.SHORTS_MAX_SECONDS;
-    });
+    const dateCutoff = new Date(Date.now() - CONFIG.DAYS_BACK * 86400000);
+    const dateFiltered = allVideos.filter(v => new Date(v.publishedAt) >= dateCutoff);
+    const videoDetails = await getDurations(dateFiltered.map(v => v.videoId));
+    const final = dateFiltered
+      .filter(v => {
+        const d = videoDetails[v.videoId];
+        return d === undefined || d.duration > CONFIG.SHORTS_MAX_SECONDS;
+      })
+      .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
 
-    allVideos.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-
-    log(`Loaded ${allVideos.length} videos.`);
-    renderCards(allVideos, videoDetails);
-    cacheFeed(allVideos);
+    log(`Loaded ${final.length} videos.`);
+    renderCards(final, videoDetails);
+    cacheFeed(final);
   } catch (e) {
     console.error(e);
     log("Error: " + e.message);
@@ -249,26 +251,28 @@ async function loadFeed() {
 
 function renderCards(videos, details) {
   gridEl.innerHTML = "";
-  for (const v of videos) {
-    const d = details?.[v.videoId] || {};
-    const a = document.createElement("a");
-    a.className = "card";
-    a.href = `https://www.youtube.com/watch?v=${v.videoId}`;
-    a.target = "_blank";
-    a.rel = "noopener";
-    const desc = d.description ? escapeHtml(d.description.slice(0, 150)) : "";
-    const dur = d.duration ? formatDuration(d.duration) : "";
-    a.innerHTML = `
-      <div class="card-body">
-        <p class="card-channel">${escapeHtml(v.channelTitle)}</p>
-        <p class="card-title">${escapeHtml(v.title)}</p>
-        ${desc ? `<p class="card-desc">${desc}${d.description.length > 150 ? "…" : ""}</p>` : ""}
-        <p class="card-meta">${formatDate(v.publishedAt)}${dur ? " · " + dur : ""}</p>
-      </div>
-      <img class="card-thumb" src="${v.thumbnail}" loading="lazy" alt="">
-    `;
-    gridEl.appendChild(a);
-  }
+  for (const v of videos) appendCard(v, details);
+}
+
+function appendCard(v, details) {
+  const d = details?.[v.videoId] || {};
+  const a = document.createElement("a");
+  a.className = "card";
+  a.href = `https://www.youtube.com/watch?v=${v.videoId}`;
+  a.target = "_blank";
+  a.rel = "noopener";
+  const desc = d.description ? escapeHtml(d.description.slice(0, 150)) : "";
+  const dur = d.duration ? formatDuration(d.duration) : "";
+  a.innerHTML = `
+    <div class="card-body">
+      <p class="card-channel">${escapeHtml(v.channelTitle)}</p>
+      <p class="card-title">${escapeHtml(v.title)}</p>
+      ${desc ? `<p class="card-desc">${desc}${d.description.length > 150 ? "…" : ""}</p>` : ""}
+      <p class="card-meta">${formatDate(v.publishedAt)}${dur ? " · " + dur : ""}</p>
+    </div>
+    <img class="card-thumb" src="${v.thumbnail}" loading="lazy" alt="">
+  `;
+  gridEl.appendChild(a);
 }
 
 function formatDate(iso) {
