@@ -11,6 +11,8 @@
     --text: #f1f1f1;
     --muted: #aaaaaa;
     --accent: #3ea6ff;
+    --radius: 10px;
+    --feed-width: 680px;
   }
   * { box-sizing: border-box; }
   body {
@@ -20,11 +22,15 @@
     margin: 0;
     padding: 0 16px 60px;
   }
+  .wrapper {
+    max-width: var(--feed-width);
+    margin: 0 auto;
+  }
   header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 4px;
+    padding: 20px 0;
     border-bottom: 1px solid #2a2a2a;
     position: sticky;
     top: 0;
@@ -48,31 +54,24 @@
   #grid {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    max-width: 600px;
-    margin: 20px auto 0;
+    gap: 14px;
+    margin-top: 24px;
   }
   .card {
     background: var(--card);
-    border-radius: 10px;
+    border-radius: var(--radius);
     overflow: hidden;
     text-decoration: none;
     color: var(--text);
     display: flex;
-    gap: 12px;
-  }
-  .card-thumb {
-    width: 180px;
-    min-width: 180px;
-    aspect-ratio: 16/9;
-    object-fit: cover;
-    display: block;
+    gap: 0;
   }
   .card-body {
-    padding: 10px 12px 10px 0;
+    flex: 1;
+    padding: 14px 16px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
     min-width: 0;
   }
   .card-channel {
@@ -80,11 +79,12 @@
     color: var(--accent);
     margin: 0;
     font-weight: 500;
+    letter-spacing: 0.02em;
   }
   .card-title {
     font-size: 14px;
     font-weight: 600;
-    line-height: 1.3;
+    line-height: 1.35;
     margin: 0;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -99,13 +99,21 @@
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    line-height: 1.4;
+    line-height: 1.45;
   }
   .card-meta {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--muted);
     margin: 0;
     margin-top: auto;
+    opacity: 0.7;
+  }
+  .card-thumb {
+    width: 240px;
+    min-width: 240px;
+    aspect-ratio: 16/9;
+    object-fit: cover;
+    display: block;
   }
   #log {
     color: var(--muted);
@@ -116,6 +124,7 @@
 </style>
 </head>
 <body>
+<div class="wrapper">
 
 <header>
   <h1>Subscriptions Feed <span id="status"></span></h1>
@@ -128,6 +137,7 @@
 <div id="log"></div>
 <div id="grid"></div>
 
+</div>
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>
