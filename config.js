@@ -2,8 +2,8 @@
 // See SETUP.md for exact steps.
 
 const CONFIG = {
-  CLIENT_ID: "PASTE_YOUR_OAUTH_CLIENT_ID_HERE.apps.googleusercontent.com",
-  API_KEY: "PASTE_YOUR_API_KEY_HERE",
+  CLIENT_ID: "460699246810-67ngl4qg7lb48nf2e7tr723384qmt080.apps.googleusercontent.com",
+  API_KEY: "AIzaSyBcLnQ9zWwPXgTBHyy4ufvRijF0t2ly0bw",
 
   // How many recent uploads to pull per channel before merging & sorting.
   // Higher = more complete but uses more of your daily quota.
