@@ -3,7 +3,9 @@
 
 const CONFIG = {
   CLIENT_ID: "460699246810-67ngl4qg7lb48nf2e7tr723384qmt080.apps.googleusercontent.com",
-  API_KEY: "AIzaSyBcLnQ9zWwPXgTBHyy4ufvRijF0t2ly0bw",
+
+  // Cloudflare Worker URL that proxies YouTube API requests (hides API key)
+  PROXY_URL: "https://youtube-proxy.ocoomber.workers.dev",
 
   // How many recent uploads to pull per channel before merging & sorting.
   // Higher = more complete but uses more of your daily quota.

@@ -1,0 +1,6 @@
+name = "youtube-proxy"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+# YT_API_KEY is set as a secret via: wrangler secret put YT_API_KEY
