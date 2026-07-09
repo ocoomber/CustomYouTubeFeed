@@ -15,6 +15,10 @@ let allLoadedVideos = [];
 let allVideoDetails = {};
 let channelAvatars = {};
 
+function openGemini(videoUrl) {
+  window.open(`https://gemini.google.com/app?q=${encodeURIComponent(videoUrl)}`);
+}
+
 function log(msg) { logEl.textContent = msg; }
 function setStatus(msg) { statusEl.textContent = msg ? `— ${msg}` : ""; }
 
@@ -376,6 +380,7 @@ function appendCard(v, details) {
       <p class="card-title">${escapeHtml(v.title)}</p>
       ${desc ? `<p class="card-desc">${desc}${d.description.length > 150 ? "…" : ""}</p>` : ""}
       <p class="card-meta">${timeAgo(v.publishedAt)}${dur ? " · " + dur : ""}</p>
+      <button class="gemini-btn" onclick="event.preventDefault();event.stopPropagation();openGemini('https://www.youtube.com/watch?v=${v.videoId}')" title="Open in Gemini">✦</button>
     </div>
     <img class="card-thumb" src="${v.thumbnail}" loading="lazy" alt="">
   `;
