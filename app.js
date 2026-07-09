@@ -144,14 +144,13 @@ async function getDurations(videoIds) {
   const details = {};
   for (const group of chunk(videoIds, 50)) {
     const data = await apiGet("videos", {
-      part: "contentDetails,snippet,statistics",
+      part: "contentDetails,snippet",
       id: group.join(",")
     });
     for (const item of data.items) {
       details[item.id] = {
         duration: parseIsoDuration(item.contentDetails.duration),
-        description: item.snippet.description || "",
-        viewCount: item.statistics?.viewCount || null
+        description: item.snippet.description || ""
       };
     }
   }
@@ -224,13 +223,13 @@ function render(videos, details) {
     a.target = "_blank";
     a.rel = "noopener";
     const desc = d.description ? escapeHtml(d.description.slice(0, 150)) : "";
-    const views = d.viewCount ? Number(d.viewCount).toLocaleString() + " views" : "";
+    const dur = d.duration ? formatDuration(d.duration) : "";
     a.innerHTML = `
       <div class="card-body">
         <p class="card-channel">${escapeHtml(v.channelTitle)}</p>
         <p class="card-title">${escapeHtml(v.title)}</p>
         ${desc ? `<p class="card-desc">${desc}${d.description.length > 150 ? "…" : ""}</p>` : ""}
-        <p class="card-meta">${formatDate(v.publishedAt)}${views ? " · " + views : ""}</p>
+        <p class="card-meta">${formatDate(v.publishedAt)}${dur ? " · " + dur : ""}</p>
       </div>
       <img class="card-thumb" src="${v.thumbnail}" loading="lazy" alt="">
     `;
@@ -241,6 +240,14 @@ function render(videos, details) {
 function formatDate(iso) {
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+function formatDuration(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${m}:${String(s).padStart(2, "0")}`;
 }
 
 function escapeHtml(str) {
