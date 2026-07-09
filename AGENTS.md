@@ -10,6 +10,10 @@ Static site (HTML + JS, no build step) that shows a YouTube subscriptions feed. 
 - `config.js` — Google OAuth Client ID and YouTube Data API key (live credentials, do not commit new ones)
 - `app.js` — all application logic: OAuth flow, YouTube Data API calls, rendering
 
+## Workflow
+
+- **Auto-push to main**: After every change, commit and push directly to `main` for immediate testing on GitHub Pages. No PRs — this is a personal tool.
+
 ## Running locally
 
 No build or install needed. Serve the directory with any static file server:
