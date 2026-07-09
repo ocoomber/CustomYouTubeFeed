@@ -5,6 +5,12 @@ const chipsEl = document.getElementById("chips");
 const signinBtn = document.getElementById("signin");
 const refreshBtn = document.getElementById("refresh");
 const themeBtn = document.getElementById("theme-toggle");
+const sidebarEl = document.getElementById("sidebar");
+const sidebarList = document.getElementById("sidebar-list");
+const sidebarToggle = document.getElementById("sidebar-toggle");
+const sidebarClose = document.getElementById("sidebar-close");
+const sidebarOverlay = document.getElementById("sidebar-overlay");
+const sidebarSearch = document.getElementById("sidebar-search-input");
 
 let tokenClient;
 let accessToken = null;
@@ -87,6 +93,23 @@ signinBtn.addEventListener("click", () => {
 });
 
 refreshBtn.addEventListener("click", loadFeed);
+
+// ---- Sidebar ----
+
+function openSidebar() { sidebarEl.classList.add("open"); }
+function closeSidebar() { sidebarEl.classList.remove("open"); }
+
+sidebarToggle.addEventListener("click", openSidebar);
+sidebarClose.addEventListener("click", closeSidebar);
+sidebarOverlay.addEventListener("click", closeSidebar);
+
+sidebarSearch.addEventListener("input", () => {
+  const q = sidebarSearch.value.toLowerCase();
+  sidebarList.querySelectorAll(".sidebar-item").forEach(item => {
+    const name = item.dataset.name.toLowerCase();
+    item.style.display = name.includes(q) ? "" : "none";
+  });
+});
 
 // ---- YouTube Data API helpers ----
 
@@ -208,34 +231,56 @@ function loadCachedFeed() {
   } catch (e) { return null; }
 }
 
-// ---- Channel chips ----
+// ---- Channel sidebar ----
 
-function renderChips(videos) {
+function renderSidebar(videos) {
   const channelCounts = {};
+  const channelIds = {};
   for (const v of videos) {
     const name = v.channelTitle;
     channelCounts[name] = (channelCounts[name] || 0) + 1;
+    if (v.channelId) channelIds[name] = v.channelId;
   }
   const sorted = Object.entries(channelCounts).sort((a, b) => b[1] - a[1]);
 
-  chipsEl.innerHTML = "";
-  const allChip = document.createElement("button");
-  allChip.className = "chip" + (activeChannel ? "" : " active");
-  allChip.textContent = `All (${videos.length})`;
-  allChip.addEventListener("click", () => { activeChannel = null; renderCards(allLoadedVideos, allVideoDetails); renderChips(allLoadedVideos); });
-  chipsEl.appendChild(allChip);
+  sidebarList.innerHTML = "";
+
+  const allBtn = document.createElement("button");
+  allBtn.className = "sidebar-item" + (activeChannel ? "" : " active");
+  allBtn.dataset.name = "all";
+  allBtn.innerHTML = `<span class="sidebar-item-name">All videos</span><span class="sidebar-item-count">${videos.length}</span>`;
+  allBtn.addEventListener("click", () => {
+    activeChannel = null;
+    renderCards(allLoadedVideos, allVideoDetails);
+    renderSidebar(allLoadedVideos);
+    closeSidebar();
+  });
+  sidebarList.appendChild(allBtn);
 
   for (const [name, count] of sorted) {
-    const chip = document.createElement("button");
-    chip.className = "chip" + (activeChannel === name ? " active" : "");
-    chip.textContent = `${name} (${count})`;
-    chip.addEventListener("click", () => {
+    const id = channelIds[name] || "";
+    const avatar = channelAvatars[id] || "";
+    const btn = document.createElement("button");
+    btn.className = "sidebar-item" + (activeChannel === name ? " active" : "");
+    btn.dataset.name = name;
+    btn.innerHTML = `
+      ${avatar ? `<img class="sidebar-item-avatar" src="${avatar}" alt="" loading="lazy">` : `<div class="sidebar-item-avatar" style="background:var(--chip-bg);border-radius:50%;"></div>`}
+      <span class="sidebar-item-name">${escapeHtml(name)}</span>
+      <span class="sidebar-item-count">${count}</span>
+    `;
+    btn.addEventListener("click", () => {
       activeChannel = activeChannel === name ? null : name;
       renderCards(allLoadedVideos, allVideoDetails);
-      renderChips(allLoadedVideos);
+      renderSidebar(allLoadedVideos);
+      closeSidebar();
     });
-    chipsEl.appendChild(chip);
+    sidebarList.appendChild(btn);
   }
+
+  sidebarSearch.value = "";
+  sidebarList.querySelectorAll(".sidebar-item").forEach(item => {
+    item.style.display = "";
+  });
 }
 
 // ---- Main flow ----
@@ -253,7 +298,7 @@ async function loadFeed() {
     log(`Showing ${cached.length} cached videos, refreshing…`);
     allLoadedVideos = cached;
     renderCards(cached);
-    renderChips(cached);
+    renderSidebar(cached);
   }
 
   try {
@@ -311,7 +356,7 @@ async function loadFeed() {
     allLoadedVideos = final;
     allVideoDetails = videoDetails;
     renderCards(final, videoDetails);
-    renderChips(final);
+    renderSidebar(final);
     cacheFeed(final);
   } catch (e) {
     console.error(e);
