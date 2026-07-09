@@ -187,8 +187,10 @@ async function getHomeFeed() {
       maxResults: "50",
       pageToken
     });
+    console.log("Activities API response:", data);
     for (const item of data.items) {
       const cd = item.contentDetails;
+      console.log("Activity item:", item.snippet.type, cd);
       let videoId = null;
       if (cd?.upload?.videoId) videoId = cd.upload.videoId;
       else if (cd?.recommendation?.resourceId?.videoId) videoId = cd.recommendation.resourceId.videoId;
