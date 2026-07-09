@@ -115,17 +115,18 @@
     display: flex;
     gap: 24px;
     margin-top: 0;
+    margin-left: 280px;
   }
   .sidebar {
-    width: 260px;
-    min-width: 260px;
-    position: sticky;
+    position: fixed;
+    left: 0;
     top: 77px;
-    align-self: flex-start;
-    max-height: calc(100vh - 100px);
+    bottom: 0;
+    width: 260px;
+    padding: 20px 16px;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
   }
   .sidebar-search {
     padding: 0 0 12px;
