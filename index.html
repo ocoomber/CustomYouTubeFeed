@@ -51,28 +51,15 @@
   }
   button:disabled { opacity: 0.5; cursor: default; }
   #controls { display: flex; align-items: center; gap: 12px; }
-  .toggle {
-    display: flex;
-    background: #2a2a2a;
-    border-radius: 20px;
-    padding: 3px;
-    gap: 2px;
+  .yt-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 0.8;
+    transition: opacity 0.15s;
   }
-  .toggle button {
-    background: transparent;
-    color: var(--muted);
-    border: none;
-    border-radius: 18px;
-    padding: 6px 14px;
-    font-weight: 600;
-    cursor: pointer;
-    font-size: 13px;
-    transition: background 0.15s, color 0.15s;
-  }
-  .toggle button.active {
-    background: var(--accent);
-    color: #000;
-  }
+  .yt-link:hover { opacity: 1; }
   #grid {
     display: flex;
     flex-direction: column;
@@ -149,12 +136,9 @@
 <div class="wrapper">
 
 <header>
-  <h1><span id="title">Subscriptions Feed</span> <span id="status"></span></h1>
+  <h1>Subscriptions Feed <span id="status"></span></h1>
   <div id="controls">
-    <div class="toggle">
-      <button id="btn-subscriptions" class="active">Subscriptions</button>
-      <button id="btn-home">Home</button>
-    </div>
+    <a id="yt-home" class="yt-link" href="https://www.youtube.com/feed/subscriptions?sp=EgIIAw%3D%3D" target="_blank" rel="noopener">YouTube Home ↗</a>
     <button id="signin">Sign in with Google</button>
     <button id="refresh" disabled>Refresh</button>
   </div>
