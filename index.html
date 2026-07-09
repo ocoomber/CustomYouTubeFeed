@@ -116,11 +116,11 @@
     gap: 24px;
   }
   .sidebar {
-    width: 260px;
-    min-width: 260px;
-    position: sticky;
+    position: fixed;
+    left: max(16px, calc(50% - 570px));
     top: 76px;
-    height: 100vh;
+    bottom: 0;
+    width: 260px;
     padding: 20px 0;
     overflow-y: auto;
     display: flex;
@@ -189,6 +189,7 @@
     flex-direction: column;
     gap: 16px;
     margin-top: 28px;
+    margin-left: 284px;
   }
   .card {
     background: var(--card);
