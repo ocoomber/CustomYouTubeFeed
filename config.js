@@ -7,7 +7,10 @@ const CONFIG = {
 
   // How many recent uploads to pull per channel before merging & sorting.
   // Higher = more complete but uses more of your daily quota.
-  VIDEOS_PER_CHANNEL: 5,
+  VIDEOS_PER_CHANNEL: 15,
+
+  // Only show videos uploaded within this many days.
+  DAYS_BACK: 7,
 
   // Skip anything this many seconds or shorter (filters out Shorts).
   SHORTS_MAX_SECONDS: 60

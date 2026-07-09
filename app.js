@@ -169,6 +169,10 @@ async function loadFeed() {
       log(`Fetching recent uploads… (${done}/${channels.length} channels)`);
     }
 
+    log("Filtering by date…");
+    const cutoff = new Date(Date.now() - CONFIG.DAYS_BACK * 86400000);
+    allVideos = allVideos.filter(v => new Date(v.publishedAt) >= cutoff);
+
     log("Filtering out Shorts…");
     const durations = await getDurations(allVideos.map(v => v.videoId));
     allVideos = allVideos.filter(v => {
