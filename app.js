@@ -1,15 +1,10 @@
 const statusEl = document.getElementById("status");
 const logEl = document.getElementById("log");
 const gridEl = document.getElementById("grid");
-const chipsEl = document.getElementById("chips");
 const signinBtn = document.getElementById("signin");
 const refreshBtn = document.getElementById("refresh");
 const themeBtn = document.getElementById("theme-toggle");
-const sidebarEl = document.getElementById("sidebar");
 const sidebarList = document.getElementById("sidebar-list");
-const sidebarToggle = document.getElementById("sidebar-toggle");
-const sidebarClose = document.getElementById("sidebar-close");
-const sidebarOverlay = document.getElementById("sidebar-overlay");
 const sidebarSearch = document.getElementById("sidebar-search-input");
 
 let tokenClient;
@@ -94,14 +89,7 @@ signinBtn.addEventListener("click", () => {
 
 refreshBtn.addEventListener("click", loadFeed);
 
-// ---- Sidebar ----
-
-function openSidebar() { sidebarEl.classList.add("open"); }
-function closeSidebar() { sidebarEl.classList.remove("open"); }
-
-sidebarToggle.addEventListener("click", openSidebar);
-sidebarClose.addEventListener("click", closeSidebar);
-sidebarOverlay.addEventListener("click", closeSidebar);
+// ---- Sidebar search ----
 
 sidebarSearch.addEventListener("input", () => {
   const q = sidebarSearch.value.toLowerCase();
@@ -253,7 +241,6 @@ function renderSidebar(videos) {
     activeChannel = null;
     renderCards(allLoadedVideos, allVideoDetails);
     renderSidebar(allLoadedVideos);
-    closeSidebar();
   });
   sidebarList.appendChild(allBtn);
 
@@ -272,7 +259,6 @@ function renderSidebar(videos) {
       activeChannel = activeChannel === name ? null : name;
       renderCards(allLoadedVideos, allVideoDetails);
       renderSidebar(allLoadedVideos);
-      closeSidebar();
     });
     sidebarList.appendChild(btn);
   }
