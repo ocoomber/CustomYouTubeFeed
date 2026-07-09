@@ -44,5 +44,14 @@ Then open `http://localhost:8000`. Google OAuth requires serving from a real ori
 - YouTube Data API has daily quota limits. Increasing `VIDEOS_PER_CHANNEL` in config.js consumes more quota per load.
 - The sidebar is `position: fixed` with `left: max(16px, calc(50% - 570px))` to align with the wrapper. Grid has `margin-left: 284px` to avoid overlap.
 - YouTube Data API does not expose the algorithmic home feed (recommended videos) — only subscriptions and own activity.
-- The sidebar is `position: fixed` with `left: max(16px, calc(50% - 570px))` to align with the wrapper. Grid has `margin-left: 284px` to avoid overlap.
-- YouTube Data API does not expose the algorithmic home feed (recommended videos) — only subscriptions and own activity.
+
+## Rotating the YouTube API key
+
+1. Delete old key and create new one at https://console.cloud.google.com/apis/credentials
+2. Restrict new key: HTTP referrers → `https://ocoomber.github.io/*`, API restriction → YouTube Data API v3 only
+3. Set the secret (prompts for input without logging):
+   ```
+   cd worker
+   wrangler secret put YT_API_KEY --name youtube-proxy
+   ```
+4. Paste the key when prompted — it will not be displayed or echoed.
