@@ -67,6 +67,7 @@ window.addEventListener("load", () => {
     scope: "https://www.googleapis.com/auth/youtube.readonly",
     callback: (resp) => {
       if (resp.error) {
+        if (resp.error === "popup_closed" || resp.error === "user_cancelled") return;
         log("Sign-in failed: " + resp.error);
         return;
       }
@@ -80,17 +81,8 @@ window.addEventListener("load", () => {
   });
 
   const saved = localStorage.getItem("yt_feed_token");
-  const savedTime = Number(localStorage.getItem("yt_feed_token_time") || 0);
-  const tokenAge = Date.now() - savedTime;
-  const TOKEN_LIFETIME = 50 * 60 * 1000; // refresh at 50 minutes
-
-  if (saved && tokenAge < TOKEN_LIFETIME) {
-    accessToken = saved;
-    setStatus("signed in");
-    refreshBtn.disabled = false;
-    loadFeed();
-  } else if (saved) {
-    // Token expired — silently refresh
+  if (saved) {
+    // Try silent refresh first — no popup
     tokenClient.requestAccessToken({ prompt: "" });
   }
 });
@@ -115,30 +107,7 @@ sidebarSearch.addEventListener("input", () => {
 
 const API_BASE = CONFIG.PROXY_URL + "/youtube";
 
-function ensureFreshToken() {
-  const savedTime = Number(localStorage.getItem("yt_feed_token_time") || 0);
-  const tokenAge = Date.now() - savedTime;
-  if (tokenAge > 45 * 60 * 1000) {
-    // Token older than 45 minutes — refresh silently
-    return new Promise(resolve => {
-      const origCallback = tokenClient.callback;
-      tokenClient.callback = (resp) => {
-        tokenClient.callback = origCallback;
-        if (resp.access_token) {
-          accessToken = resp.access_token;
-          localStorage.setItem("yt_feed_token", accessToken);
-          localStorage.setItem("yt_feed_token_time", Date.now());
-        }
-        resolve();
-      };
-      tokenClient.requestAccessToken({ prompt: "" });
-    });
-  }
-  return Promise.resolve();
-}
-
 async function apiGet(path, params) {
-  await ensureFreshToken();
   const url = new URL(`${API_BASE}/${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   const res = await fetch(url, {
