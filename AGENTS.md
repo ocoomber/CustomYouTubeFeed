@@ -27,7 +27,7 @@ Then open `http://localhost:8000`. Google OAuth requires serving from a real ori
 
 ## Features
 
-- OAuth via Google Identity Services (token model, silent re-auth on reload)
+- OAuth via Google Identity Services (authorization code flow with refresh tokens — stays signed in across sessions)
 - Feed shows subscriptions sorted by upload date with configurable time window (3/7/14/30 days)
 - Shorts filtered out (configurable `SHORTS_MAX_SECONDS` in config.js)
 - Persistent sidebar channel filter with search (position: fixed, aligned to wrapper)
@@ -35,6 +35,7 @@ Then open `http://localhost:8000`. Google OAuth requires serving from a real ori
 - Feed cached in localStorage for instant load on reload
 - Incremental rendering during load (cards append as channels are fetched)
 - YouTube Home link in header
+- Gemini button on each card (opens video in Gemini for discussion)
 
 ## Important caveats
 
@@ -55,3 +56,16 @@ Then open `http://localhost:8000`. Google OAuth requires serving from a real ori
    wrangler secret put YT_API_KEY --name youtube-proxy
    ```
 4. Paste the key when prompted — it will not be displayed or echoed.
+
+## Rotating the Google OAuth client secret
+
+1. Go to https://console.cloud.google.com/apis/credentials
+2. Click your OAuth 2.0 Client ID
+3. Click the pencil icon (edit) → **Regenerate secret**
+4. Copy the new secret
+5. Set it:
+   ```
+   cd worker
+   wrangler secret put GOOGLE_CLIENT_SECRET --name youtube-proxy
+   ```
+6. Paste the secret when prompted — it will not be displayed or echoed.
