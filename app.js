@@ -56,7 +56,7 @@ window.addEventListener("load", () => {
 
   // Restore days
   const savedDays = localStorage.getItem("yt_feed_days");
-  if (savedDays) daysBack = Number(savedDays);
+  if (savedDays && !isNaN(Number(savedDays))) daysBack = Number(savedDays);
   document.querySelectorAll(".range-btn").forEach(b => b.classList.remove("active"));
   document.querySelector(`.range-btn[data-days="${daysBack}"]`)?.classList.add("active");
 

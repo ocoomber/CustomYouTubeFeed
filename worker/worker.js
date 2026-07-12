@@ -26,8 +26,17 @@ export default {
         return new Response("Not found", { status: 404 });
       }
 
+      // Validate Origin header — reject non-browser or wrong-origin clients
+      const origin = request.headers.get("Origin") || "";
+      if (origin && !ALLOWED_ORIGINS.some(o => origin.startsWith(o))) {
+        return new Response("Forbidden", { status: 403 });
+      }
+
       // Build YouTube API URL
       const ytPath = url.pathname.replace(/^\/youtube\//, "");
+      if (!ytPath || !/^[a-zA-Z0-9_.\/]+$/.test(ytPath)) {
+        return new Response("Invalid path", { status: 400 });
+      }
       if (!ytPath) {
         return new Response("Missing API path", { status: 400 });
       }
