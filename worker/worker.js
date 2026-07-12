@@ -55,6 +55,7 @@ export default {
         headers: {
           "Content-Type": ct,
           "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
+          "Vary": "Origin",
         },
       });
     } catch (err) {
