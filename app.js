@@ -108,7 +108,6 @@ window.addEventListener("load", async () => {
         loadFeed();
         return;
       }
-      console.error("Token exchange error:", tokens);
       log("Sign-in failed: " + (tokens.error_description || tokens.error || "unknown error"));
     } catch (e) {
       console.error("Token exchange failed:", e);

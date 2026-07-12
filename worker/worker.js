@@ -110,9 +110,6 @@ async function handleTokenExchange(request, env) {
   });
 
   const data = await res.text();
-  if (!res.ok) {
-    console.error("Google token error:", res.status, data);
-  }
   return new Response(data, {
     status: res.status,
     headers: {
