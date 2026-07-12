@@ -9,7 +9,7 @@ const sidebarSearch = document.getElementById("sidebar-search-input");
 
 let tokenClient;
 let accessToken = null;
-let daysBack = 7;
+let daysBack = 3;
 let activeChannel = null;
 let allLoadedVideos = [];
 let allVideoDetails = {};
@@ -57,8 +57,7 @@ window.addEventListener("load", () => {
   const savedDays = localStorage.getItem("yt_feed_days");
   if (savedDays) {
     daysBack = Number(savedDays);
-    document.querySelector(`.range-btn[data-days="${daysBack}"]`)?.classList.add("active");
-    document.querySelector(".range-btn.active")?.classList.remove("active");
+    document.querySelectorAll(".range-btn").forEach(b => b.classList.remove("active"));
     document.querySelector(`.range-btn[data-days="${daysBack}"]`)?.classList.add("active");
   }
 
@@ -68,6 +67,12 @@ window.addEventListener("load", () => {
     callback: (resp) => {
       if (resp.error) {
         if (resp.error === "popup_closed" || resp.error === "user_cancelled") return;
+        if (resp.error === "login_required" || resp.error === "consent_required") {
+          localStorage.removeItem("yt_feed_token");
+          localStorage.removeItem("yt_feed_token_time");
+          setStatus("");
+          return;
+        }
         log("Sign-in failed: " + resp.error);
         return;
       }
@@ -107,16 +112,21 @@ sidebarSearch.addEventListener("input", () => {
 
 const API_BASE = CONFIG.PROXY_URL + "/youtube";
 
-async function apiGet(path, params) {
+async function apiGet(path, params, retries = 2) {
   const url = new URL(`${API_BASE}/${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
   if (!res.ok) {
+    if (retries > 0 && (res.status === 429 || res.status >= 500)) {
+      await new Promise(r => setTimeout(r, 1000));
+      return apiGet(path, params, retries - 1);
+    }
     const body = await res.text();
     if (res.status === 401) {
       localStorage.removeItem("yt_feed_token");
+      localStorage.removeItem("yt_feed_token_time");
       accessToken = null;
       setStatus("");
       refreshBtn.disabled = true;
@@ -254,7 +264,7 @@ function renderSidebar(videos) {
     btn.className = "sidebar-item" + (activeChannel === name ? " active" : "");
     btn.dataset.name = name;
     btn.innerHTML = `
-      ${avatar ? `<img class="sidebar-item-avatar" src="${avatar}" alt="" loading="lazy">` : `<div class="sidebar-item-avatar" style="background:var(--chip-bg);border-radius:50%;"></div>`}
+      ${avatar ? `<img class="sidebar-item-avatar" src="${escapeHtml(avatar)}" alt="" loading="lazy">` : `<div class="sidebar-item-avatar" style="background:var(--chip-bg);border-radius:50%;"></div>`}
       <span class="sidebar-item-name">${escapeHtml(name)}</span>
       <span class="sidebar-item-count">${count}</span>
     `;
@@ -266,9 +276,10 @@ function renderSidebar(videos) {
     sidebarList.appendChild(btn);
   }
 
-  sidebarSearch.value = "";
+  const prevSearch = sidebarSearch.value;
   sidebarList.querySelectorAll(".sidebar-item").forEach(item => {
-    item.style.display = "";
+    const name = item.dataset.name.toLowerCase();
+    item.style.display = name.includes(prevSearch.toLowerCase()) ? "" : "none";
   });
 }
 
@@ -374,16 +385,22 @@ function appendCard(v, details) {
   a.innerHTML = `
     <div class="card-body">
       <div class="card-header">
-        ${avatar ? `<img class="card-avatar" src="${avatar}" alt="" loading="lazy">` : ""}
+        ${avatar ? `<img class="card-avatar" src="${escapeHtml(avatar)}" alt="" loading="lazy">` : ""}
         <p class="card-channel">${escapeHtml(v.channelTitle)}</p>
       </div>
       <p class="card-title">${escapeHtml(v.title)}</p>
       ${desc ? `<p class="card-desc">${desc}${d.description.length > 150 ? "…" : ""}</p>` : ""}
       <p class="card-meta">${timeAgo(v.publishedAt)}${dur ? " · " + dur : ""}</p>
-      <button class="gemini-btn" onclick="event.preventDefault();event.stopPropagation();openGemini('https://www.youtube.com/watch?v=${v.videoId}')" title="Open in Gemini">✦</button>
+      <button class="gemini-btn" title="Open in Gemini">✦</button>
     </div>
-    <img class="card-thumb" src="${v.thumbnail}" loading="lazy" alt="">
+    <img class="card-thumb" src="${escapeHtml(v.thumbnail || "")}" loading="lazy" alt="">
   `;
+  const geminiBtn = a.querySelector(".gemini-btn");
+  geminiBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openGemini(`https://www.youtube.com/watch?v=${v.videoId}`);
+  });
   gridEl.appendChild(a);
 }
 

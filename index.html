@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Subscriptions Feed</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
@@ -267,7 +268,7 @@
     transition: opacity 0.2s;
     align-self: flex-start;
   }
-  .gemini-btn:hover { opacity: 1; border-color: var(--card-fg); color: var(--card-fg); }
+  .gemini-btn:hover { opacity: 1; border-color: var(--text); color: var(--text); }
   .card-thumb {
     width: 400px;
     min-width: 400px;
@@ -282,6 +283,19 @@
     margin-left: 284px;
     white-space: pre-line;
   }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    #grid { margin-left: 0; }
+    #log { margin-left: 0; }
+  }
+  @media (max-width: 700px) {
+    .card { flex-direction: column; }
+    .card-thumb { width: 100%; min-width: 0; }
+  }
 </style>
 </head>
 <body>
@@ -291,13 +305,13 @@
   <h1>Subscriptions Feed <span id="status"></span></h1>
   <div id="controls">
     <div class="date-range">
-      <button class="range-btn active" data-days="3">3d</button>
-      <button class="range-btn" data-days="7">7d</button>
-      <button class="range-btn" data-days="14">14d</button>
-      <button class="range-btn" data-days="30">30d</button>
+      <button class="range-btn active" data-days="3" aria-label="Show videos from last 3 days">3d</button>
+      <button class="range-btn" data-days="7" aria-label="Show videos from last 7 days">7d</button>
+      <button class="range-btn" data-days="14" aria-label="Show videos from last 14 days">14d</button>
+      <button class="range-btn" data-days="30" aria-label="Show videos from last 30 days">30d</button>
     </div>
     <a id="yt-home" class="yt-link" href="https://www.youtube.com/" target="_blank" rel="noopener">YouTube ↗</a>
-    <button id="theme-toggle" title="Toggle light/dark mode">☀</button>
+    <button id="theme-toggle" title="Toggle light/dark mode" aria-label="Toggle light/dark mode">☀</button>
     <button id="signin">Sign in with Google</button>
     <button id="refresh" disabled>Refresh</button>
   </div>
