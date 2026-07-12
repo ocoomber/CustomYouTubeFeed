@@ -9,7 +9,8 @@ const sidebarSearch = document.getElementById("sidebar-search-input");
 
 let tokenClient;
 let accessToken = null;
-let daysBack = 3;
+let isRefreshing = false;
+let daysBack = CONFIG.DAYS_BACK;
 let activeChannel = null;
 let allLoadedVideos = [];
 let allVideoDetails = {};
@@ -55,16 +56,15 @@ window.addEventListener("load", () => {
 
   // Restore days
   const savedDays = localStorage.getItem("yt_feed_days");
-  if (savedDays) {
-    daysBack = Number(savedDays);
-    document.querySelectorAll(".range-btn").forEach(b => b.classList.remove("active"));
-    document.querySelector(`.range-btn[data-days="${daysBack}"]`)?.classList.add("active");
-  }
+  if (savedDays) daysBack = Number(savedDays);
+  document.querySelectorAll(".range-btn").forEach(b => b.classList.remove("active"));
+  document.querySelector(`.range-btn[data-days="${daysBack}"]`)?.classList.add("active");
 
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CONFIG.CLIENT_ID,
     scope: "https://www.googleapis.com/auth/youtube.readonly",
     callback: (resp) => {
+      isRefreshing = false;
       if (resp.error) {
         if (resp.error === "popup_closed" || resp.error === "user_cancelled") return;
         if (resp.error === "login_required" || resp.error === "consent_required") {
@@ -76,6 +76,7 @@ window.addEventListener("load", () => {
         log("Sign-in failed: " + resp.error);
         return;
       }
+      if (!resp.access_token) return;
       accessToken = resp.access_token;
       localStorage.setItem("yt_feed_token", accessToken);
       localStorage.setItem("yt_feed_token_time", Date.now());
@@ -88,11 +89,13 @@ window.addEventListener("load", () => {
   const saved = localStorage.getItem("yt_feed_token");
   if (saved) {
     // Try silent refresh first — no popup
+    isRefreshing = true;
     tokenClient.requestAccessToken({ prompt: "" });
   }
 });
 
 signinBtn.addEventListener("click", () => {
+  if (isRefreshing) return;
   tokenClient.requestAccessToken({ prompt: accessToken ? "" : "consent" });
 });
 
@@ -194,12 +197,13 @@ async function getRecentVideosForPlaylist(playlistId) {
 }
 
 function parseIsoDuration(iso) {
-  const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  const m = iso.match(/P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
   if (!m) return 0;
-  const h = parseInt(m[1] || "0", 10);
-  const min = parseInt(m[2] || "0", 10);
-  const s = parseInt(m[3] || "0", 10);
-  return h * 3600 + min * 60 + s;
+  const d = parseInt(m[1] || "0", 10);
+  const h = parseInt(m[2] || "0", 10);
+  const min = parseInt(m[3] || "0", 10);
+  const s = parseInt(m[4] || "0", 10);
+  return d * 86400 + h * 3600 + min * 60 + s;
 }
 
 async function getDurations(videoIds) {
@@ -288,6 +292,7 @@ function renderSidebar(videos) {
 let feedVersion = 0;
 
 async function loadFeed() {
+  if (!accessToken) return;
   const myVersion = ++feedVersion;
   gridEl.innerHTML = "";
   refreshBtn.disabled = true;
@@ -310,7 +315,7 @@ async function loadFeed() {
 
     log("Fetching recent uploads…");
     let allVideos = [];
-    let renderedIds = new Set();
+    let renderedIds = new Set(cached ? cached.map(v => v.videoId) : []);
     const CONCURRENCY = 10;
     const channelBatches = chunk(channels, CONCURRENCY);
     let done = 0;
@@ -427,7 +432,6 @@ function formatDuration(seconds) {
 }
 
 function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
