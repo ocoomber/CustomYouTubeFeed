@@ -37,8 +37,10 @@ export default {
       }
       ytUrl.searchParams.set("key", env.YT_API_KEY);
 
-      // Forward with fixed Referer for quota attribution
+      // Forward auth + fixed Referer for quota attribution
       const headers = new Headers();
+      const auth = request.headers.get("Authorization");
+      if (auth) headers.set("Authorization", auth);
       headers.set("Referer", "https://ocoomber.github.io/CustomYouTubeFeed/");
 
       const res = await fetch(ytUrl.toString(), {
