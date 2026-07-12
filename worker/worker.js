@@ -95,19 +95,24 @@ async function handleTokenExchange(request, env) {
     });
   }
 
+  const body = new URLSearchParams({
+    code,
+    client_id: env.GOOGLE_CLIENT_ID,
+    client_secret: env.GOOGLE_CLIENT_SECRET,
+    redirect_uri,
+    grant_type: "authorization_code",
+  });
+
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      code,
-      client_id: env.GOOGLE_CLIENT_ID,
-      client_secret: env.GOOGLE_CLIENT_SECRET,
-      redirect_uri,
-      grant_type: "authorization_code",
-    }),
+    body,
   });
 
   const data = await res.text();
+  if (!res.ok) {
+    console.error("Google token error:", res.status, data);
+  }
   return new Response(data, {
     status: res.status,
     headers: {
