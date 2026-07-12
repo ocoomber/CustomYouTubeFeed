@@ -3,4 +3,7 @@ main = "worker.js"
 compatibility_date = "2025-01-01"
 
 [vars]
-# YT_API_KEY is set as a secret via: wrangler secret put YT_API_KEY
+# YT_API_KEY and GOOGLE_CLIENT_SECRET are set as secrets via:
+#   wrangler secret put YT_API_KEY
+#   wrangler secret put GOOGLE_CLIENT_SECRET
+GOOGLE_CLIENT_ID = "460699246810-67ngl4qg7lb48nf2e7tr723384qmt080.apps.googleusercontent.com"
