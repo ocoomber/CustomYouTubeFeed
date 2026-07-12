@@ -7,9 +7,7 @@ const themeBtn = document.getElementById("theme-toggle");
 const sidebarList = document.getElementById("sidebar-list");
 const sidebarSearch = document.getElementById("sidebar-search-input");
 
-let tokenClient;
 let accessToken = null;
-let isRefreshing = false;
 let daysBack = CONFIG.DAYS_BACK;
 let activeChannel = null;
 let allLoadedVideos = [];
@@ -50,7 +48,43 @@ document.querySelectorAll(".range-btn").forEach(btn => {
 
 // ---- OAuth ----
 
-window.addEventListener("load", () => {
+const REDIRECT_URI = location.origin + location.pathname;
+
+async function exchangeCodeForTokens(code) {
+  const res = await fetch(`${CONFIG.PROXY_URL}/oauth/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code, redirect_uri: REDIRECT_URI }),
+  });
+  return res.json();
+}
+
+async function refreshAccessToken(refreshToken) {
+  const res = await fetch(`${CONFIG.PROXY_URL}/oauth/refresh`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+  return res.json();
+}
+
+function setAuthState(token, refreshToken) {
+  accessToken = token;
+  localStorage.setItem("yt_feed_token", accessToken);
+  if (refreshToken) localStorage.setItem("yt_feed_refresh_token", refreshToken);
+  setStatus("signed in");
+  refreshBtn.disabled = false;
+}
+
+function clearAuthState() {
+  accessToken = null;
+  localStorage.removeItem("yt_feed_token");
+  localStorage.removeItem("yt_feed_refresh_token");
+  setStatus("");
+  refreshBtn.disabled = true;
+}
+
+window.addEventListener("load", async () => {
   // Restore theme
   applyTheme(localStorage.getItem("yt_feed_theme") || "dark");
 
@@ -60,43 +94,63 @@ window.addEventListener("load", () => {
   document.querySelectorAll(".range-btn").forEach(b => b.classList.remove("active"));
   document.querySelector(`.range-btn[data-days="${daysBack}"]`)?.classList.add("active");
 
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: CONFIG.CLIENT_ID,
-    scope: "https://www.googleapis.com/auth/youtube.readonly",
-    callback: (resp) => {
-      isRefreshing = false;
-      if (resp.error) {
-        if (resp.error === "popup_closed" || resp.error === "user_cancelled") return;
-        if (resp.error === "login_required" || resp.error === "consent_required") {
-          localStorage.removeItem("yt_feed_token");
-          localStorage.removeItem("yt_feed_token_time");
-          setStatus("");
-          return;
-        }
-        log("Sign-in failed: " + resp.error);
+  // Check if returning from OAuth redirect
+  const urlParams = new URLSearchParams(window.location.search);
+  const authCode = urlParams.get("code");
+  if (authCode) {
+    // Clean URL
+    window.history.replaceState({}, document.title, REDIRECT_URI);
+    log("Completing sign-in…");
+    try {
+      const tokens = await exchangeCodeForTokens(authCode);
+      if (tokens.access_token) {
+        setAuthState(tokens.access_token, tokens.refresh_token);
+        loadFeed();
         return;
       }
-      if (!resp.access_token) return;
-      accessToken = resp.access_token;
-      localStorage.setItem("yt_feed_token", accessToken);
-      localStorage.setItem("yt_feed_token_time", Date.now());
-      setStatus("signed in");
-      refreshBtn.disabled = false;
-      loadFeed();
+    } catch (e) {
+      console.error("Token exchange failed:", e);
     }
-  });
+    log("Sign-in failed — please try again.");
+    return;
+  }
 
+  // Try refresh token first (silent, no popup)
+  const savedRefresh = localStorage.getItem("yt_feed_refresh_token");
+  if (savedRefresh) {
+    log("Refreshing session…");
+    try {
+      const tokens = await refreshAccessToken(savedRefresh);
+      if (tokens.access_token) {
+        setAuthState(tokens.access_token, tokens.refresh_token || savedRefresh);
+        loadFeed();
+        return;
+      }
+    } catch (e) {
+      console.error("Token refresh failed:", e);
+    }
+    // Refresh failed — clear and require manual sign-in
+    clearAuthState();
+    return;
+  }
+
+  // No refresh token — user needs to sign in
   const saved = localStorage.getItem("yt_feed_token");
   if (saved) {
-    // Try silent refresh first — no popup
-    isRefreshing = true;
-    tokenClient.requestAccessToken({ prompt: "" });
+    // Legacy token without refresh — clear it
+    clearAuthState();
   }
 });
 
 signinBtn.addEventListener("click", () => {
-  if (isRefreshing) return;
-  tokenClient.requestAccessToken({ prompt: accessToken ? "" : "consent" });
+  const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  authUrl.searchParams.set("client_id", CONFIG.CLIENT_ID);
+  authUrl.searchParams.set("redirect_uri", REDIRECT_URI);
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("scope", "https://www.googleapis.com/auth/youtube.readonly");
+  authUrl.searchParams.set("access_type", "offline");
+  authUrl.searchParams.set("prompt", "consent");
+  window.location.href = authUrl.toString();
 });
 
 refreshBtn.addEventListener("click", loadFeed);
@@ -128,11 +182,7 @@ async function apiGet(path, params, retries = 2) {
     }
     const body = await res.text();
     if (res.status === 401) {
-      localStorage.removeItem("yt_feed_token");
-      localStorage.removeItem("yt_feed_token_time");
-      accessToken = null;
-      setStatus("");
-      refreshBtn.disabled = true;
+      clearAuthState();
       log("Session expired — please sign in again.");
     }
     throw new Error(`${path} failed: ${res.status} ${body}`);
