@@ -48,7 +48,7 @@ document.querySelectorAll(".range-btn").forEach(btn => {
 
 // ---- OAuth ----
 
-const REDIRECT_URI = location.origin + location.pathname;
+const REDIRECT_URI = (location.origin + location.pathname.replace(/index\.html$/, "")).replace(/\/$/, "") + "/";
 
 async function exchangeCodeForTokens(code) {
   const res = await fetch(`${CONFIG.PROXY_URL}/oauth/token`, {

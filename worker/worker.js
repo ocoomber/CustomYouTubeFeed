@@ -1,5 +1,12 @@
 const ALLOWED_ORIGINS = ["https://ocoomber.github.io"];
 
+function isAllowedOrigin(origin) {
+  try {
+    const u = new URL(origin);
+    return ALLOWED_ORIGINS.some(o => new URL(o).hostname === u.hostname);
+  } catch { return false; }
+}
+
 export default {
   async fetch(request, env) {
     try {
@@ -18,7 +25,7 @@ export default {
 
       // Validate Origin header — reject non-browser or wrong-origin clients
       const origin = request.headers.get("Origin") || "";
-      if (origin && !ALLOWED_ORIGINS.some(o => origin.startsWith(o))) {
+      if (origin && !isAllowedOrigin(origin)) {
         return new Response("Forbidden", { status: 403 });
       }
 
@@ -80,6 +87,7 @@ export default {
         headers: {
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
+          "Vary": "Origin",
         },
       });
     }

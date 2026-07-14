@@ -126,6 +126,7 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    z-index: 5;
   }
   .sidebar-search {
     padding: 0 0 12px;
@@ -200,7 +201,10 @@
     color: var(--text);
     display: flex;
     gap: 0;
+    transition: box-shadow 0.2s, transform 0.2s;
   }
+  .card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.3); transform: translateY(-2px); }
+  .light .card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
   .card-body {
     flex: 1;
     padding: 20px 22px;
