@@ -1,7 +1,7 @@
 // Fill these in with your own values from Google Cloud Console.
 // See SETUP.md for exact steps.
 
-const CONFIG = {
+export const CONFIG = {
   CLIENT_ID: "460699246810-67ngl4qg7lb48nf2e7tr723384qmt080.apps.googleusercontent.com",
 
   // Cloudflare Worker URL that proxies YouTube API requests (hides API key)
