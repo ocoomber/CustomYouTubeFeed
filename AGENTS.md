@@ -4,12 +4,32 @@
 
 Static site (HTML + JS, no build step) that shows a YouTube subscriptions feed. Deployed via GitHub Pages from `main` branch root.
 
+## Standards
+
+`coding-constitution.yaml` governs file structure, naming, and workflow conventions for this repo (one file/one responsibility, ~150-line soft ceiling per file, pure logic never shares a function with side effects, non-entry files live in subfolders, etc.). Follow it for any new code.
+
 ## Structure
 
-- `index.html` — entry point, loads Google Identity Services SDK, then `config.js` and `app.js`
-- `config.js` — Google OAuth Client ID and Worker proxy URL (no secrets)
-- `app.js` — all application logic: OAuth flow, YouTube Data API calls, rendering
+- `index.html` — entry point; links `src/style.css` and loads `src/main.js` as an ES module (`<script type="module">`)
+- `config.js` — Google OAuth Client ID and Worker proxy URL (no secrets); `export const CONFIG`, edited directly by hand
+- `src/` — frontend logic, one responsibility per file:
+  - `main.js` — entry point: grabs DOM refs, wires session/feed/theme modules together
+  - `session.js` — sign-in button, OAuth redirect/refresh bootstrap on page load, token state
+  - `feed.js` — feed load orchestration (subscriptions → videos → render/cache)
+  - `auth.js` — OAuth token exchange/refresh calls, sign-in URL, token storage (no DOM)
+  - `youtube-api.js` — YouTube Data API calls via the Worker proxy
+  - `render.js` — DOM rendering only (cards, sidebar) — takes data in, no fetching
+  - `cache.js` — localStorage feed cache
+  - `format.js` — pure formatting/parsing helpers (dates, durations, HTML-escaping)
+  - `theme.js` — light/dark theme toggle
+  - `style.css` — all page styling
 - `worker/` — Cloudflare Worker that proxies YouTube API requests, keeping the API key server-side
+  - `worker.js` — entry point / router
+  - `src/cors.js` — origin allowlist + CORS headers
+  - `src/oauth.js` — OAuth token exchange/refresh endpoints
+  - `src/youtube-proxy.js` — the `/youtube/*` proxy handler
+
+Frontend and worker code both use native ES modules (`import`/`export`) — no bundler or build step for either.
 
 ## Workflow
 
@@ -27,7 +47,7 @@ Then open `http://localhost:8000`. Google OAuth requires serving from a real ori
 
 ## Features
 
-- OAuth via Google Identity Services (authorization code flow with refresh tokens — stays signed in across sessions)
+- OAuth via a manual redirect flow to Google's authorization endpoint (authorization code flow with refresh tokens — stays signed in across sessions; no Google Identity Services SDK involved)
 - Feed shows subscriptions sorted by upload date with configurable time window (3/7/14/30 days)
 - Shorts filtered out (configurable `SHORTS_MAX_SECONDS` in config.js)
 - Persistent sidebar channel filter with search (position: fixed, aligned to wrapper)
