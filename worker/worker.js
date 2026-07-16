@@ -1,11 +1,8 @@
-const ALLOWED_ORIGINS = ["https://ocoomber.github.io"];
+// Entry point: routes requests to the OAuth or YouTube-proxy handlers.
 
-function isAllowedOrigin(origin) {
-  try {
-    const u = new URL(origin);
-    return ALLOWED_ORIGINS.some(o => new URL(o).hostname === u.hostname);
-  } catch { return false; }
-}
+import { isAllowedOrigin, corsHeaders } from "./src/cors.js";
+import { handleTokenExchange, handleTokenRefresh } from "./src/oauth.js";
+import { handleYoutubeProxy } from "./src/youtube-proxy.js";
 
 export default {
   async fetch(request, env) {
@@ -15,11 +12,10 @@ export default {
       // CORS preflight
       if (request.method === "OPTIONS") {
         return new Response(null, {
-          headers: {
-            "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
+          headers: corsHeaders({
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
             "Access-Control-Allow-Headers": "Authorization, Content-Type",
-          },
+          }),
         });
       }
 
@@ -49,110 +45,12 @@ export default {
         return new Response("Not found", { status: 404 });
       }
 
-      // Build YouTube API URL
-      const ytPath = url.pathname.replace(/^\/youtube\//, "");
-      if (!ytPath || !/^[a-zA-Z0-9_.\/]+$/.test(ytPath)) {
-        return new Response("Invalid path", { status: 400 });
-      }
-      const ytUrl = new URL(`https://www.googleapis.com/youtube/v3/${ytPath}`);
-      for (const [k, v] of url.searchParams) {
-        if (k !== "key") ytUrl.searchParams.set(k, v);
-      }
-      ytUrl.searchParams.set("key", env.YT_API_KEY);
-
-      // Forward auth + fixed Referer for quota attribution
-      const headers = new Headers();
-      const auth = request.headers.get("Authorization");
-      if (auth) headers.set("Authorization", auth);
-      headers.set("Referer", "https://ocoomber.github.io/CustomYouTubeFeed/");
-
-      const res = await fetch(ytUrl.toString(), {
-        method: "GET",
-        headers,
-      });
-
-      // Stream response, forward upstream Content-Type
-      const ct = res.headers.get("Content-Type") || "application/json";
-      return new Response(res.body, {
-        status: res.status,
-        headers: {
-          "Content-Type": ct,
-          "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
-          "Vary": "Origin",
-        },
-      });
+      return handleYoutubeProxy(request, url, env);
     } catch (err) {
       return new Response(JSON.stringify({ error: "Proxy error" }), {
         status: 502,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
-          "Vary": "Origin",
-        },
+        headers: corsHeaders({ "Content-Type": "application/json", "Vary": "Origin" }),
       });
     }
   },
 };
-
-async function handleTokenExchange(request, env) {
-  const { code, redirect_uri } = await request.json();
-  if (!code || !redirect_uri) {
-    return new Response(JSON.stringify({ error: "Missing code or redirect_uri" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0] },
-    });
-  }
-
-  const body = new URLSearchParams({
-    code,
-    client_id: env.GOOGLE_CLIENT_ID,
-    client_secret: env.GOOGLE_CLIENT_SECRET,
-    redirect_uri,
-    grant_type: "authorization_code",
-  });
-
-  const res = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body,
-  });
-
-  const data = await res.text();
-  return new Response(data, {
-    status: res.status,
-    headers: {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
-    },
-  });
-}
-
-async function handleTokenRefresh(request, env) {
-  const { refresh_token } = await request.json();
-  if (!refresh_token) {
-    return new Response(JSON.stringify({ error: "Missing refresh_token" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0] },
-    });
-  }
-
-  const res = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      refresh_token: refresh_token,
-      client_id: env.GOOGLE_CLIENT_ID,
-      client_secret: env.GOOGLE_CLIENT_SECRET,
-      grant_type: "refresh_token",
-    }),
-  });
-
-  const data = await res.text();
-  return new Response(data, {
-    status: res.status,
-    headers: {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
-    },
-  });
-}
