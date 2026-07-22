@@ -15,5 +15,5 @@ export const CONFIG = {
   DAYS_BACK: 7,
 
   // Skip anything this many seconds or shorter (filters out Shorts).
-  SHORTS_MAX_SECONDS: 60
+  SHORTS_MAX_SECONDS: 90
 };
