@@ -15,5 +15,9 @@ export const CONFIG = {
   DAYS_BACK: 7,
 
   // Skip anything this many seconds or shorter (filters out Shorts).
-  SHORTS_MAX_SECONDS: 90
+  SHORTS_MAX_SECONDS: 90,
+
+  // How long the channel list + upload-playlist IDs are reused from cache.
+  // Subscriptions rarely change; Refresh always fetches fresh.
+  SUBSCRIPTIONS_TTL_HOURS: 24
 };

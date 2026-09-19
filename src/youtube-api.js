@@ -48,11 +48,12 @@ export async function getAllSubscriptions(accessToken, onUnauthorized) {
 
 export async function getUploadsPlaylistIds(channels, accessToken, onUnauthorized) {
   const map = {};
-  for (const group of chunk(channels, 50)) {
-    const data = await apiGet("channels", {
-      part: "contentDetails,snippet",
-      id: group.map(c => c.id).join(",")
-    }, accessToken, onUnauthorized);
+  const groups = chunk(channels, 50);
+  const responses = await Promise.all(groups.map(group => apiGet("channels", {
+    part: "contentDetails,snippet",
+    id: group.map(c => c.id).join(",")
+  }, accessToken, onUnauthorized)));
+  for (const data of responses) {
     for (const item of data.items) {
       map[item.id] = item.contentDetails.relatedPlaylists.uploads;
       channelAvatars[item.id] = item.snippet.thumbnails?.default?.url || "";
@@ -79,16 +80,21 @@ export async function getRecentVideosForPlaylist(playlistId, accessToken, onUnau
 
 export async function getDurations(videoIds, accessToken, onUnauthorized) {
   const details = {};
-  for (const group of chunk(videoIds, 50)) {
-    const data = await apiGet("videos", {
+  const groups = chunk(videoIds, 50);
+  // Bounded parallelism: same quota as serial, fewer network waves.
+  const CONCURRENCY = 5;
+  for (let i = 0; i < groups.length; i += CONCURRENCY) {
+    const responses = await Promise.all(groups.slice(i, i + CONCURRENCY).map(group => apiGet("videos", {
       part: "contentDetails,snippet",
       id: group.join(",")
-    }, accessToken, onUnauthorized);
-    for (const item of data.items) {
-      details[item.id] = {
-        duration: parseIsoDuration(item.contentDetails.duration),
-        description: item.snippet.description || ""
-      };
+    }, accessToken, onUnauthorized)));
+    for (const data of responses) {
+      for (const item of data.items) {
+        details[item.id] = {
+          duration: parseIsoDuration(item.contentDetails.duration),
+          description: item.snippet.description || ""
+        };
+      }
     }
   }
   return details;

@@ -19,7 +19,7 @@ Static site (HTML + JS, no build step) that shows a YouTube subscriptions feed. 
   - `auth.js` — OAuth token exchange/refresh calls, sign-in URL, token storage (no DOM)
   - `youtube-api.js` — YouTube Data API calls via the Worker proxy
   - `render.js` — DOM rendering only (cards, sidebar) — takes data in, no fetching
-  - `cache.js` — localStorage feed cache
+  - `cache.js` — localStorage feed cache, subscriptions cache (24h TTL), and video details cache
   - `format.js` — pure formatting/parsing helpers (dates, durations, HTML-escaping)
   - `theme.js` — light/dark theme toggle
   - `style.css` — all page styling
@@ -53,6 +53,8 @@ Then open `http://localhost:8000`. Google OAuth requires serving from a real ori
 - Persistent sidebar channel filter with search (position: fixed, aligned to wrapper)
 - Light/dark theme toggle (persisted to localStorage)
 - Feed cached in localStorage for instant load on reload
+- Subscriptions + upload-playlist IDs cached 24h (`SUBSCRIPTIONS_TTL_HOURS` in config.js); Refresh button always fetches fresh
+- Video durations/descriptions cached so repeat loads only fetch details for new videos
 - Incremental rendering during load (cards append as channels are fetched)
 - YouTube Home link in header
 - Gemini button on each card (opens video in Gemini for discussion)

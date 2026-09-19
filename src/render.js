@@ -12,6 +12,7 @@ export function appendCard(gridEl, v, details) {
   const avatar = channelAvatars[v.channelId] || "";
   const a = document.createElement("a");
   a.className = "card";
+  a.dataset.videoId = v.videoId;
   a.href = `https://www.youtube.com/watch?v=${v.videoId}`;
   a.target = "_blank";
   a.rel = "noopener";
@@ -43,6 +44,23 @@ export function renderCards(gridEl, videos, details, activeChannel) {
   gridEl.innerHTML = "";
   const filtered = activeChannel ? videos.filter(v => v.channelTitle === activeChannel) : videos;
   for (const v of filtered) appendCard(gridEl, v, details);
+}
+
+// Patches duration/description onto an already-appended card so background
+// detail fetches do not need a full re-render.
+export function updateCardDetails(gridEl, video, detailsMap) {
+  const card = gridEl.querySelector(`[data-video-id="${video.videoId}"]`);
+  if (!card) return;
+  const d = detailsMap?.[video.videoId];
+  if (!d) return;
+  const meta = card.querySelector(".card-meta");
+  if (meta && d.duration) meta.textContent = `${timeAgo(video.publishedAt)} · ${formatDuration(d.duration)}`;
+  if (d.description && !card.querySelector(".card-desc")) {
+    const desc = document.createElement("p");
+    desc.className = "card-desc";
+    desc.textContent = d.description.slice(0, 150) + (d.description.length > 150 ? "…" : "");
+    card.querySelector(".card-title")?.after(desc);
+  }
 }
 
 export function renderSidebar(sidebarList, sidebarSearch, videos, activeChannel, onSelectChannel) {
