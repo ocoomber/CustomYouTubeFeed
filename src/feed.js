@@ -23,9 +23,25 @@ export function initFeedUI({ gridEl, sidebarList, sidebarSearch, refreshBtn, log
     renderSidebar(sidebarList, sidebarSearch, allLoadedVideos, activeChannel, selectChannel);
   }
 
+  // Renders the cached feed (if any) so returning users see content even
+  // before auth resolves or when signed out, instead of a blank page.
+  function showCachedFeed() {
+    const cached = loadCachedFeed();
+    if (!cached || !cached.length) return false;
+    allLoadedVideos = cached;
+    allVideoDetails = loadVideoDetailsCache();
+    renderCards(gridEl, cached, allVideoDetails, activeChannel);
+    renderSidebar(sidebarList, sidebarSearch, cached, activeChannel, selectChannel);
+    log(`Showing ${cached.length} cached videos — please sign in to refresh.`);
+    return true;
+  }
+
   async function loadFeed(forceFresh = false) {
     const accessToken = getAccessToken();
-    if (!accessToken) return;
+    if (!accessToken) {
+      if (!showCachedFeed()) log("Please sign in to load your subscriptions feed.");
+      return;
+    }
     const myVersion = ++feedVersion;
     gridEl.innerHTML = "";
     refreshBtn.disabled = true;
@@ -140,6 +156,10 @@ export function initFeedUI({ gridEl, sidebarList, sidebarSearch, refreshBtn, log
   }
 
   refreshBtn.addEventListener("click", () => { loadFeed(true); });
+
+  // Show cached content immediately so a returning user with an expired or
+  // missing session sees videos + a sign-in prompt instead of a blank page.
+  if (!showCachedFeed()) log("Please sign in to load your subscriptions feed.");
 
   return { loadFeed };
 }

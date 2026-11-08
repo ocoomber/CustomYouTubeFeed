@@ -74,6 +74,7 @@ export function initSession({ signinBtn, refreshBtn, setStatus, log, onAuthentic
         console.error("Token refresh failed:", e);
       }
       clearAuthState();
+      log("Session expired — please sign in again.");
       return;
     }
 

@@ -52,7 +52,8 @@ Then open `http://localhost:8000`. Google OAuth requires serving from a real ori
 - Shorts filtered out (configurable `SHORTS_MAX_SECONDS` in config.js)
 - Persistent sidebar channel filter with search (position: fixed, aligned to wrapper)
 - Light/dark theme toggle (persisted to localStorage)
-- Feed cached in localStorage for instant load on reload
+- Feed cached in localStorage for instant load on reload; cached feed also renders immediately on startup even when signed out (with a sign-in prompt) so a returning user with an expired session sees videos instead of a blank page
+- Unauthenticated/signed-out state shows a sign-in prompt in the log area; expired refresh tokens clear the session and log `Session expired — please sign in again.` instead of leaving a stale `Refreshing session…`
 - Subscriptions + upload-playlist IDs cached 24h (`SUBSCRIPTIONS_TTL_HOURS` in config.js); Refresh button always fetches fresh
 - Video durations/descriptions cached so repeat loads only fetch details for new videos
 - Incremental rendering during load (cards append as channels are fetched)
